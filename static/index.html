@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .game-container {
+            background-color: #dcb35c;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .board-wrapper {
+            display: grid;
+            grid-template-columns: 20px 1fr 20px;
+            grid-template-rows: 20px 1fr 20px;
+            gap: 0;
+        }
+
+        .board {
+            background-color: #dcb35c;
+            position: relative;
+            margin: 15px;
+        }
+
+        .coordinates {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            color: #000;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            background-color: #dcb35c;
+        }
+
+        .coordinates.horizontal {
+            position: relative;
+            height: 20px;
+            margin: 0 15px;
+        }
+
+        .coordinates.vertical {
+            position: relative;
+            width: 20px;
+            margin: 15px 0;
+        }
+
+        .coordinate-label {
+            position: absolute;
+            text-align: center;
+            width: 30px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .coordinate-label.vertical {
+            width: 20px;
+            height: 30px;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* Grid lines */
+        .board::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(90deg, black 1px, transparent 1px),
+                linear-gradient(180deg, black 1px, transparent 1px);
+            background-size: 30px 30px;
+            background-position: 0 0;
+            pointer-events: none;
+        }
+
+        /* Border */
+        .board::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 1px solid black;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
+        .intersection {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .stone {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stone.black {
+            background: radial-gradient(circle at 30% 30%, #444, #000);
+        }
+
+        .stone.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        select {
+            padding: 8px 15px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        select:disabled {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        .dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 101;
+            min-width: 300px;
+        }
+
+        .dialog h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .dialog-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            color: #666;
+        }
+
+        .timer-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 16px;
+            font-family: monospace;
+        }
+
+        .timer {
+            padding: 5px 10px;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+        }
+
+        .timer.active {
+            background-color: #e0ffe0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .stats-label {
+            font-weight: bold;
+            color: #666;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-button:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="timer-display">
+        <div class="timer" id="blackTimer">Black: 15:00</div>
+        <div class="timer" id="whiteTimer">White: 15:00</div>
+    </div>
+    <div class="controls">
+        <button onclick="showNewGameDialog()">New Game</button>
+        <button onclick="toggleAI()" id="aiButton">Enable AI</button>
+        <select id="difficulty" onchange="changeDifficulty()" disabled>
+            <option value="easy">Easy (Random)</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+        </select>
+        <button onclick="showStats()">View Stats</button>
+    </div>
+    <div id="status" class="status"></div>
+    <div class="game-container">
+        <div class="board-wrapper">
+            <div class="coordinates top-left"></div>
+            <div class="coordinates horizontal" id="topCoords"></div>
+            <div class="coordinates top-right"></div>
+            
+            <div class="coordinates vertical" id="leftCoords"></div>
+            <div id="board" class="board"></div>
+            <div class="coordinates vertical" id="rightCoords"></div>
+            
+            <div class="coordinates bottom-left"></div>
+            <div class="coordinates horizontal" id="bottomCoords"></div>
+            <div class="coordinates bottom-right"></div>
+        </div>
+    </div>
+    
+    <!-- New Game Dialog -->
+    <div id="newGameOverlay" class="dialog-overlay">
+        <div class="dialog">
+            <button class="close-button" onclick="hideNewGameDialog()">&times;</button>
+            <h2>New Game Setup</h2>
+            <div class="dialog-content">
+                <div class="form-group">
+                    <label for="boardSize">Board Size:</label>
+                    <select id="boardSize">
+                        <option value="9">9×9</option>
+                        <option value="13">13×13</option>
+                        <option value="19" selected>19×19</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="timeControl">Time Control:</label>
+                    <select id="timeControl">
+                        <option value="900">15 minutes</option>
+                        <option value="1800">30 minutes</option>
+                        <option value="2700">45 minutes</option>
+                        <option value="3600">1 hour</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="startNewGame()">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Stats Dialog -->
+    <div id="statsOverlay" class="dialog-overlay">
+        <div class="dialog">
+            <button class="close-button" onclick="hideStats()">&times;</button>
+            <h2>Game Statistics</h2>
+            <div class="stats-grid">
+                <div class="stats-label">Black Moves:</div>
+                <div id="blackMoves">0</div>
+                <div class="stats-label">White Moves:</div>
+                <div id="whiteMoves">0</div>
+                <div class="stats-label">Black Captures:</div>
+                <div id="blackCaptures">0</div>
+                <div class="stats-label">White Captures:</div>
+                <div id="whiteCaptures">0</div>
+                <div class="stats-label">Game Duration:</div>
+                <div id="gameDuration">0:00</div>
+                <div class="stats-label">Avg Move Time:</div>
+                <div id="avgMoveTime">0s</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameState = null;
+        let aiEnabled = false;
+        let currentDifficulty = 'easy';
+        let gameTimer = null;
+        let blackTimeLeft = 900; // 15 minutes in seconds
+        let whiteTimeLeft = 900;
+        let lastMoveTime = null;
+
+        function showNewGameDialog() {
+            document.getElementById('newGameOverlay').style.display = 'block';
+        }
+
+        function hideNewGameDialog() {
+            document.getElementById('newGameOverlay').style.display = 'none';
+        }
+
+        function startNewGame() {
+            const size = parseInt(document.getElementById('boardSize').value);
+            const timeControl = parseInt(document.getElementById('timeControl').value);
+            
+            // Reset timers
+            blackTimeLeft = timeControl;
+            whiteTimeLeft = timeControl;
+            updateTimerDisplay();
+            
+            // Stop existing timer if running
+            if (gameTimer) {
+                clearInterval(gameTimer);
+            }
+
+            // Start new game with selected size
+            fetch('/api/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ size: size })
+            })
+            .then(response => response.json())
+            .then(data => {
+                gameState = data;
+                createBoard();
+                updateBoard();
+                startTimer();
+                hideNewGameDialog();
+            });
+        }
+
+        function startTimer() {
+            lastMoveTime = Date.now();
+            gameTimer = setInterval(updateTimer, 100); // Update every 100ms for smooth display
+        }
+
+        function updateTimer() {
+            if (!gameState || !lastMoveTime) return;
+
+            const currentTime = Date.now();
+            const elapsed = (currentTime - lastMoveTime) / 1000;
+
+            if (gameState.currentPlayer === 1) {
+                blackTimeLeft -= elapsed;
+                if (blackTimeLeft <= 0) {
+                    clearInterval(gameTimer);
+                    alert("Black's time is up! White wins!");
+                    return;
+                }
+            } else {
+                whiteTimeLeft -= elapsed;
+                if (whiteTimeLeft <= 0) {
+                    clearInterval(gameTimer);
+                    alert("White's time is up! Black wins!");
+                    return;
+                }
+            }
+
+            lastMoveTime = currentTime;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const blackTimer = document.getElementById('blackTimer');
+            const whiteTimer = document.getElementById('whiteTimer');
+
+            blackTimer.textContent = `Black: ${formatTime(blackTimeLeft)}`;
+            whiteTimer.textContent = `White: ${formatTime(whiteTimeLeft)}`;
+
+            blackTimer.classList.toggle('active', gameState && gameState.currentPlayer === 1);
+            whiteTimer.classList.toggle('active', gameState && gameState.currentPlayer === 2);
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(Math.max(0, seconds) / 60);
+            const secs = Math.floor(Math.max(0, seconds) % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function toggleAI() {
+            aiEnabled = !aiEnabled;
+            const aiButton = document.getElementById('aiButton');
+            const difficultySelect = document.getElementById('difficulty');
+            
+            aiButton.textContent = aiEnabled ? 'Disable AI' : 'Enable AI';
+            difficultySelect.disabled = !aiEnabled;
+            
+            // If AI is enabled and it's White's turn, trigger AI move
+            if (aiEnabled && gameState.currentPlayer === 2) {
+                setTimeout(makeAIMove, 500);
+            }
+            
+            updateStatus();
+        }
+
+        function changeDifficulty() {
+            const difficultySelect = document.getElementById('difficulty');
+            currentDifficulty = difficultySelect.value;
+        }
+
+        function updateCoordinates(size) {
+            const letters = 'ABCDEFGHJKLMNOPQRST'; // Skip 'I' as per Go convention
+            const topCoords = document.getElementById('topCoords');
+            const bottomCoords = document.getElementById('bottomCoords');
+            const leftCoords = document.getElementById('leftCoords');
+            const rightCoords = document.getElementById('rightCoords');
+
+            // Clear existing coordinates
+            topCoords.innerHTML = '';
+            bottomCoords.innerHTML = '';
+            leftCoords.innerHTML = '';
+            rightCoords.innerHTML = '';
+
+            // Add letter coordinates (horizontal)
+            for (let i = 0; i < size; i++) {
+                const letterTop = document.createElement('div');
+                const letterBottom = document.createElement('div');
+                letterTop.className = 'coordinate-label';
+                letterBottom.className = 'coordinate-label';
+                letterTop.textContent = letters[i];
+                letterBottom.textContent = letters[i];
+                letterTop.style.left = (i * 30) + 'px';
+                letterBottom.style.left = (i * 30) + 'px';
+                topCoords.appendChild(letterTop);
+                bottomCoords.appendChild(letterBottom);
+            }
+
+            // Add number coordinates (vertical)
+            for (let i = 0; i < size; i++) {
+                const numberLeft = document.createElement('div');
+                const numberRight = document.createElement('div');
+                numberLeft.className = 'coordinate-label vertical';
+                numberRight.className = 'coordinate-label vertical';
+                numberLeft.textContent = size - i;
+                numberRight.textContent = size - i;
+                numberLeft.style.top = (i * 30) + 'px';
+                numberRight.style.top = (i * 30) + 'px';
+                leftCoords.appendChild(numberLeft);
+                rightCoords.appendChild(numberRight);
+            }
+        }
+
+        function createBoard() {
+            const board = document.getElementById('board');
+            const size = gameState.size;
+            
+            // Set board size dynamically
+            board.style.width = `${(size - 1) * 30}px`;
+            board.style.height = `${(size - 1) * 30}px`;
+            board.innerHTML = '';
+
+            // Create intersections
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const intersection = document.createElement('div');
+                    intersection.className = 'intersection';
+                    intersection.style.left = (x * 30) + 'px';
+                    intersection.style.top = (y * 30) + 'px';
+                    intersection.onclick = (e) => {
+                        e.stopPropagation();
+                        makeMove(x, y);
+                    };
+                    board.appendChild(intersection);
+                }
+            }
+
+            updateCoordinates(size);
+        }
+
+        function updateBoard() {
+            const intersections = document.querySelectorAll('.intersection');
+            // Remove only stones, keep intersections
+            intersections.forEach(intersection => {
+                const stones = intersection.querySelectorAll('.stone');
+                stones.forEach(stone => stone.remove());
+            });
+
+            for (let y = 0; y < gameState.size; y++) {
+                for (let x = 0; x < gameState.size; x++) {
+                    const value = gameState.board[y][x];
+                    if (value !== 0) {
+                        const index = y * gameState.size + x;
+                        const stone = document.createElement('div');
+                        stone.className = `stone ${value === 1 ? 'black' : 'white'}`;
+                        intersections[index].appendChild(stone);
+                    }
+                }
+            }
+
+            updateStatus();
+            updateStatsDisplay();
+        }
+
+        async function makeAIMove() {
+            try {
+                const response = await fetch('/api/ai-move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ difficulty: currentDifficulty })
+                });
+
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(error);
+                }
+
+                gameState = await response.json();
+                updateBoard();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function makeMove(x, y) {
+            if (aiEnabled && gameState.currentPlayer === 2) {
+                return; // Don't allow manual moves for player 2 when AI is enabled
+            }
+
+            try {
+                const response = await fetch('/api/move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ x, y }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(error);
+                }
+
+                gameState = await response.json();
+                updateBoard();
+
+                // Make AI move if it's player 2's turn and AI is enabled
+                if (aiEnabled && gameState.currentPlayer === 2) {
+                    setTimeout(makeAIMove, 500); // Add a small delay for better UX
+                }
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        function updateStatus() {
+            const status = document.getElementById('status');
+            let statusText = `Current Player: ${gameState.currentPlayer === 1 ? 'Black' : 'White'}`;
+            if (aiEnabled && gameState.currentPlayer === 2) {
+                statusText += ' (AI thinking...)';
+            }
+            status.textContent = statusText;
+        }
+
+        async function resetGame() {
+            const response = await fetch('/api/reset', { method: 'POST' });
+            gameState = await response.json();
+            updateBoard();
+        }
+
+        async function fetchGameState() {
+            const response = await fetch('/api/state');
+            gameState = await response.json();
+            createBoard();
+            updateBoard();
+        }
+
+        function showStats() {
+            const overlay = document.getElementById('statsOverlay');
+            updateStatsDisplay();
+            overlay.style.display = 'block';
+        }
+
+        function hideStats() {
+            const overlay = document.getElementById('statsOverlay');
+            overlay.style.display = 'none';
+        }
+
+        function updateStatsDisplay() {
+            if (!gameState || !gameState.stats) return;
+
+            const stats = gameState.stats;
+            document.getElementById('blackMoves').textContent = stats.blackMoves;
+            document.getElementById('whiteMoves').textContent = stats.whiteMoves;
+            document.getElementById('blackCaptures').textContent = stats.blackCaptures;
+            document.getElementById('whiteCaptures').textContent = stats.whiteCaptures;
+
+            // Calculate game duration
+            const startTime = new Date(stats.gameStartTime);
+            const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
+            const minutes = Math.floor(duration / 60);
+            const seconds = duration % 60;
+            document.getElementById('gameDuration').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            // Calculate average move time
+            if (stats.moveTimes.length > 1) {
+                let totalTime = 0;
+                for (let i = 1; i < stats.moveTimes.length; i++) {
+                    totalTime += stats.moveTimes[i] - stats.moveTimes[i-1];
+                }
+                const avgTime = totalTime / (stats.moveTimes.length - 1);
+                document.getElementById('avgMoveTime').textContent = 
+                    `${(avgTime / 1000).toFixed(1)}s`;
+            }
+        }
+
+        // Initialize the game
+        fetchGameState();
+    </script>
+</body>
+</html> 
